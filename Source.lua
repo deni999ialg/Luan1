@@ -1,10 +1,38 @@
 -- Customize the script settings here
 local commandPrefix = "/" -- Change this to your desired prefix
 local commandUrl = "http://localhost:3000/commands.json" -- Replace with your server URL
+-- Table to store user roles (Replace with actual role-checking logic)
+local userRoles = {
+    ["Admin"] = true, -- Replace with actual player role logic
+    ["User"] = false,
+}
 
+-- Function to check if a user is allowed to execute a command
+local function hasPermission(role)
+    return userRoles[role] or false
+end
+
+-- Example: Restrict a command
+commandList["adminCommand"] = function()
+    if hasPermission("Admin") then
+        print("Admin command executed!")
+    else
+        print("You do not have permission to use this command.")
+    end
+end
 local HttpService = game:GetService("HttpService")
 local commandList = {}
+-- Function to add an alias for an existing command
+local function addCommandAlias(alias, originalCommand)
+    if commandList[originalCommand] then
+        commandList[alias] = commandList[originalCommand]
+    else
+        warn("Original command '" .. originalCommand .. "' does not exist.")
+    end
+end
 
+-- Example: Add an alias
+addCommandAlias("h", "help") -- Users can now use `/h` as an alias for `/help`
 -- Function to fetch and load commands from the web
 local function loadCommandsFromWeb()
     local success, response = pcall(function()
@@ -27,6 +55,16 @@ local function loadCommandsFromWeb()
         warn("Failed to fetch commands from web: " .. response)
     end
 end
+-- Function to display available commands
+local function showHelp()
+    print("Available Commands:")
+    for command, _ in pairs(commandList) do
+        print("- " .. command)
+    end
+end
+
+-- Add the help command to the command list
+commandList["help"] = showHelp
 
 -- Function to create the command bar UI
 local function createCommandBar()
@@ -48,21 +86,42 @@ local function createCommandBar()
     inputBox.Text = ""
     inputBox.ClearTextOnFocus = false
     inputBox.Parent = commandBar
+-- Function to log executed commands
+local function logCommand(command)
+    print("Command executed: " .. command .. " at " .. os.date("%Y-%m-%d %H:%M:%S"))
+end
 
-    inputBox.FocusLost:Connect(function(_, enterPressed)
-        if enterPressed then
-            local input = inputBox.Text:lower()
-            if input:sub(1, #commandPrefix) == commandPrefix then
-                local command = input:sub(#commandPrefix + 1) -- Remove the prefix
-                if commandList[command] then
-                    commandList[command]()  -- Execute the command
-                    inputBox.Text = ""  -- Clear input box
-                else
-                    print("Command not found: " .. command)
-                end
+-- Modify the command execution to include logging
+inputBox.FocusLost:Connect(function(_, enterPressed)
+    if enterPressed then
+        local input = inputBox.Text:lower()
+        if input:sub(1, #commandPrefix) == commandPrefix then
+            local command = input:sub(#commandPrefix + 1) -- Remove the prefix
+            if commandList[command] then
+                commandList[command]()  -- Execute the command
+                logCommand(command)    -- Log the command
+                inputBox.Text = ""     -- Clear input box
+            else
+                print("Command not found: " .. command)
             end
         end
-    end)
+    end
+end)
+    -- Function to suggest commands
+local function autocomplete(input)
+    local suggestions = {}
+    for command, _ in pairs(commandList) do
+        if command:sub(1, #input) == input then
+            table.insert(suggestions, command)
+        end
+    end
+    return suggestions
+end
+
+-- Example usage of autocomplete
+local input = "he"
+local suggestions = autocomplete(input)
+print("Suggestions for '" .. input .. "': " .. table.concat(suggestions, ", "))
     
     -- Tweening for UI animations (Optional)
     local tweenService = game:GetService("TweenService")
@@ -71,7 +130,11 @@ local function createCommandBar()
     local tween = tweenService:Create(commandBar, tweenInfo, tweenGoal)
     tween:Play()
 end
+-- Function to suggest commands
+
+-- Example usage of autocomplete
 
 -- Initialize the command bar and load commands from the web
 loadCommandsFromWeb()
 createCommandBar()
+
